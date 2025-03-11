@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.25.0/themes/prism.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.25.0/prism.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <title>ChatGPT Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #f4f4f9;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message p {
+            margin-bottom: 0;
+            margin-top: 0;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: #007bff;
+            color: white;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: #e0e0e0;
+            /* color: #333; */
+        }
+
+        .recomment-message {
+            border: solid 1px blue;
+            align-self: flex-end;
+            background-color: #ffffff00;
+            color: #000000;
+            cursor: pointer;
+        }
+
+        .input-container {
+            display: flex;
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #ddd;
+        }
+
+        .input-container textarea {
+            font-family: Arial, sans-serif;
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+            font-size: 16px;
+            resize: none;
+            /* Không cho người dùng kéo thả thủ công */
+            overflow-y: hidden;
+            /* Ẩn thanh cuộn dọc */
+        }
+
+
+        .input-container button {
+            margin-left: 10px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .input-container button:hover {
+            background-color: #0056b3;
+        }
+
+        pre {
+            position: relative;
+            /* Đảm bảo nút copy có thể định vị trong thẻ <pre> */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-x: auto;
+            background-color: #fff !important;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 100%;
+        }
+
+        pre .copy-btn {
+            position: absolute;
+            /* Đặt nút copy cố định trong thẻ <pre> */
+            top: 5px;
+            /* Cách phần trên 5px */
+            right: 5px;
+            /* Cách phần phải 5px */
+            background-color: #f1f1f1;
+            /* Màu nền nhẹ cho nút */
+            color: #007bff;
+            /* Màu chữ giống ChatGPT */
+            border: 1px solid #ccc;
+            /* Đường viền mờ */
+            border-radius: 4px;
+            /* Bo góc nhẹ */
+            padding: 5px 8px;
+            font-size: 12px;
+            /* Cỡ chữ nhỏ, gọn gàng */
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+            /* Hiệu ứng chuyển động khi hover */
+            z-index: 10;
+            /* Đảm bảo nút hiển thị trên các phần tử khác */
+        }
+
+        pre .copy-btn:hover {
+            background-color: #007bff;
+            /* Màu nền khi hover */
+            color: white;
+            /* Đổi màu chữ khi hover */
+            border-color: #007bff;
+            /* Đổi màu viền khi hover */
+        }
+
+        pre .copy-btn:active {
+            background-color: #0056b3;
+            /* Màu nền khi nhấn */
+            border-color: #0056b3;
+            /* Đổi màu viền khi nhấn */
+        }
+
+        /* Icon sao chép sử dụng Font Awesome */
+        pre .copy-btn i {
+            font-size: 14px;
+            /* Cỡ icon */
+        }
+
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            /* Font chữ cố định chiều rộng */
+            font-size: 14px;
+            /* Đồng bộ với thẻ pre */
+            /* color: #333; */
+            /* Màu chữ */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container" id="chat-container">
+        <div class="message bot-message">
+            Xin chào! Tôi có thể giúp gì cho bạn?
+        </div>
+    </div>
+    <div class="input-container">
+        <textarea id="user-input" placeholder="Nhập tin nhắn..." rows="1"></textarea>
+        <button id="send-button">
+            <i class="fa-solid fa-paper-plane" id="icon_send"></i>
+        </button>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="chat.js"></script>
+</body>
+
+</html>
