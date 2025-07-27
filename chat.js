@@ -2,7 +2,7 @@ const chatContainer = document.getElementById("chat-container");
 const userInput = document.getElementById("user-input");
 const sendButton = document.getElementById("send-button");
 
-const apiKey = "<<KEY_YESCALE>>";
+const apiKey = "<<API_KEY>>";
 
 let chatHistory = [
   {
