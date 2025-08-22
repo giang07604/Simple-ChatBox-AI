@@ -1001,8 +1001,10 @@ def safe_mouse_click(x, y, button='left', clicks=1, duration=0.2):
 
 
 def safe_mouse_drag(start_x, start_y, end_x, end_y, duration=0.5):
-    """Cross-platform safe mouse drag"""
+    """Cross-platform safe mouse drag with explicit trajectory control"""
     try:
+        print(f"🖱️ Starting drag: ({start_x}, {start_y}) → ({end_x}, {end_y})")
+        
         if not safe_mouse_move(start_x, start_y, 0.2):
             return False
 
@@ -1011,9 +1013,17 @@ def safe_mouse_drag(start_x, start_y, end_x, end_y, duration=0.5):
         if SYSTEM == "Darwin":  # macOS
             pag.mouseDown(start_x, start_y, button='left')
             time.sleep(0.1)
-            pag.moveTo(end_x, end_y, duration=duration)
-            time.sleep(0.1)
-            pag.mouseUp(end_x, end_y, button='left')
+            
+            # Force straight line movement - keep Y constant for horizontal drag
+            if abs(end_y - start_y) < 5:  # Horizontal drag
+                print(f"🔄 Horizontal drag detected, forcing Y={start_y}")
+                pag.moveTo(end_x, start_y, duration=duration)  # Keep Y constant
+                time.sleep(0.1)
+                pag.mouseUp(end_x, start_y, button='left')  # Use start_y to keep horizontal
+            else:
+                pag.moveTo(end_x, end_y, duration=duration)
+                time.sleep(0.1)
+                pag.mouseUp(end_x, end_y, button='left')
         else:  # Windows/Linux
             pag.drag(end_x, end_y, duration, button='left')
 
