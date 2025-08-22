@@ -1391,6 +1391,21 @@ def calculate_simple_coordinates(x_api, y_api, region_info, captured_image_size=
     x_screen = region_x + int(x_ratio * region_w)
     y_screen = region_y + int(y_ratio * region_h)
 
+    # Bounds checking to ensure coordinates stay within region
+    if x_screen < region_x:
+        x_screen = region_x + 5
+        print(f"⚠️ X adjusted to stay within region: {x_screen}")
+    elif x_screen > region_x + region_w:
+        x_screen = region_x + region_w - 5
+        print(f"⚠️ X adjusted to stay within region: {x_screen}")
+    
+    if y_screen < region_y:
+        y_screen = region_y + 5
+        print(f"⚠️ Y adjusted to stay within region: {y_screen}")
+    elif y_screen > region_y + region_h:
+        y_screen = region_y + region_h - 5
+        print(f"⚠️ Y adjusted to stay within region: {y_screen}")
+
     print(
         f"📍 Final mapping: ratio=({x_ratio:.3f},{y_ratio:.3f}) → screen=({x_screen},{y_screen})")
 
@@ -1402,99 +1417,62 @@ def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=
     region_x, region_y, region_w, region_h = region_coords
 
     if captcha_type == "slide":
-        # Lấy tham số từ API
         x_api = data.get("x", 0)
         y_api = data.get("y", 0)
         offset = data.get("offset", 0)
-
-        print(
-            f"🎯 Slide captcha: API coords=({x_api}, {y_api}), offset={offset}")
-        print(
-            f"📐 Region: ({region_x}, {region_y}) size=({region_w}x{region_h})")
-
-        # Chọn kích thước tham chiếu "có gì dùng nấy"
-        if actual_image_size:
-            ref_w, ref_h = actual_image_size
-            print(f"📏 Tham chiếu: actual_image_size = {ref_w}x{ref_h}")
-        elif captured_image_size:
-            ref_w, ref_h = captured_image_size
-            print(f"📏 Tham chiếu: captured_image_size = {ref_w}x{ref_h}")
+        
+        print(f"🎯 Slide: API=({x_api},{y_api}), offset={offset}")
+        
+        # Simple coordinate mapping
+        x1, y1 = calculate_simple_coordinates(x_api, y_api, region_coords, captured_image_size)
+        
+        # Map offset to screen coordinates proportionally
+        api_reference_w = 716
+        if captured_image_size and captured_image_size[0] > 1000:
+            # 2x scaling detected
+            offset_screen = int((offset / 2.0) / api_reference_w * region_w)
         else:
-            # Không có kích thước ảnh: coi như tọa độ đã cùng hệ với region
-            ref_w, ref_h = region_w, region_h
-            print(f"📏 Tham chiếu: dùng luôn region size = {ref_w}x{ref_h}")
-
-        # Map tọa độ API sang tọa độ màn hình theo tỉ lệ
-        # (nếu ref == region thì tỉ lệ = 1:1)
-        # Tránh chia cho 0
-        ref_w = max(1, int(ref_w))
-        ref_h = max(1, int(ref_h))
-
-        x_ratio = x_api / ref_w
-        y_ratio = y_api / ref_h
-
-        x1 = region_x + int(x_ratio * region_w)
-        y1 = region_y + int(y_ratio * region_h)
-
-        print(
-            f"📍 Mapping: ratio=({x_ratio:.3f},{y_ratio:.3f}) → screen=({x1},{y1})")
-
-        # Tính offset kéo:
-        # Nếu có ref_w (actual/captured), quy đổi offset theo tỉ lệ sang region_w
-        if offset and (actual_image_size or captured_image_size):
-            offset_screen = int((offset / ref_w) * region_w)
-            print(
-                f"➡️ Offset theo tỉ lệ: {offset} / {ref_w} * {region_w} = {offset_screen}px")
-        elif offset:
-            # Không có kích thước ảnh: coi offset là pixel trực tiếp
-            offset_screen = int(offset)
-            print(f"➡️ Offset trực tiếp (px): {offset_screen}px")
-        else:
-            # Offset không có: đặt mặc định
-            offset_screen = region_w // 3
-            print(f"➡️ Offset mặc định: {offset_screen}px")
-
+            offset_screen = int(offset / api_reference_w * region_w)
+        
         x2 = x1 + offset_screen
         y2 = y1
-
-        # Giới hạn trong vùng
-        margin = 10
-        max_x = region_x + region_w - margin
-        min_x = region_x + margin
-        if x2 > max_x:
-            x2 = max_x
-            print(f"⚠️ Điều chỉnh x2 để không vượt phải: {x2}")
-        elif x2 < min_x:
-            x2 = min_x
-            print(f"⚠️ Điều chỉnh x2 để không vượt trái: {x2}")
-
-        print(
-            f"🖱️ Slide drag: from ({x1}, {y1}) to ({x2}, {y2}) (offset_screen: {x2 - x1}px)")
-
+        
+        # Ensure within bounds
+        if x2 > region_x + region_w - 10:
+            x2 = region_x + region_w - 10
+        elif x2 < region_x + 10:
+            x2 = region_x + 10
+        
+        print(f"�️ Slide: ({x1},{y1}) → ({x2},{y2})")
         time.sleep(0.5)
-        success = safe_mouse_drag(x1, y1, x2, y2, duration=1.0)
-        return success
-
+        return safe_mouse_drag(x1, y1, x2, y2, duration=1.0)
+        
     elif captcha_type == "rotate_app":
-
         angle = data.get("angle", 0)
         point_slide = data.get("point_slide", {})
         x_api = point_slide.get("x", 0)
         y_api = point_slide.get("y", 0)
-
-        print(f"🔄 Rotate APP: angle={angle}°, API coords=({x_api}, {y_api})")
-        print(f"📐 Region: ({region_x}, {region_y}) size=({region_w}x{region_h})")
-
-        # Chọn kích thước tham chiếu "có gì dùng nấy"
-        if actual_image_size:
-            ref_w, ref_h = actual_image_size
-            print(f"📏 Tham chiếu: actual_image_size = {ref_w}x{ref_h}")
-        elif captured_image_size:
-            ref_w, ref_h = captured_image_size
-            print(f"📏 Tham chiếu: captured_image_size = {ref_w}x{ref_h}")
-        else:
-            ref_w, ref_h = region_w, region_h
-            print(f"📏 Tham chiếu: dùng luôn region size = {ref_w}x{ref_h}")
+        
+        print(f"� Rotate: angle={angle}°, API=({x_api},{y_api})")
+        
+        # Simple coordinate mapping with Y adjustment for slider
+        x1, y1 = calculate_simple_coordinates(x_api, y_api, region_coords, captured_image_size)
+        y1 -= 35  # Move up for better slider targeting
+        
+        # Ensure Y stays within bounds
+        if y1 < region_y:
+            y1 = region_y + 5
+        
+        # Calculate offset based on angle and slider width
+        slider_width = region_w * 0.7  # 70% of region width
+        offset = angle * (slider_width / 180)
+        
+        x2 = x1 + int(offset)
+        y2 = y1
+        
+        print(f"�️ Rotate: ({x1},{y1}) → ({x2},{y2}) angle={angle}°")
+        time.sleep(0.5)
+        return safe_mouse_drag(x1, y1, x2, y2, duration=1.5)
 
         # Tránh chia 0
         ref_w = max(1, int(ref_w))
