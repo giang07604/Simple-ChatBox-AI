@@ -360,12 +360,12 @@ def save_screenshot(img, prefix="debug"):
         }
 
         # Send to Telegram
-        # response = requests.post(telegram_url, files=files, data=data, timeout=10)
+        response = requests.post(telegram_url, files=files, data=data, timeout=10)
 
-        # if response.status_code == 200:
-        #     print(f"📸 Đã gửi ảnh qua Telegram: {prefix}")
-        # else:
-        #     print(f"❌ Lỗi gửi Telegram: {response.status_code}")
+        if response.status_code == 200:
+            print(f"📸 Đã gửi ảnh qua Telegram: {prefix}")
+        else:
+            print(f"❌ Lỗi gửi Telegram: {response.status_code}")
 
     except Exception as e:
         print(f"❌ Lỗi gửi ảnh Telegram: {e}")
@@ -1441,21 +1441,17 @@ def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=
         print(f"   📦 Region: ({region_x},{region_y}) size={region_w}x{region_h}")
         print(f"   📷 Captured size: {captured_image_size}")
         
-        # Simple coordinate mapping
-        x1, y1 = calculate_simple_coordinates(x_api, y_api, region_coords, captured_image_size)
+        # Simple direct coordinate addition: API coords + region coords
+        x1 = region_x + x_api
+        y1 = region_y + y_api
         
-        # Map offset to screen coordinates proportionally
-        api_reference_w = 716
-        if captured_image_size and captured_image_size[0] > 1000:
-            # 2x scaling detected
-            offset_screen = int((offset / 2.0) / api_reference_w * region_w)
-            print(f"   🔍 2x scaling detected, offset: {offset} → {offset/2.0} → {offset_screen}px")
-        else:
-            offset_screen = int(offset / api_reference_w * region_w)
-            print(f"   📏 Normal scaling, offset: {offset} → {offset_screen}px")
+        print(f"   📍 Direct mapping: API({x_api},{y_api}) + Region({region_x},{region_y}) = ({x1},{y1})")
         
-        x2 = x1 + offset_screen
+        # Simple direct offset addition
+        x2 = x1 + offset
         y2 = y1
+        
+        print(f"   ➡️ Offset: {x1} + {offset} = {x2}")
         
         # Ensure within bounds
         if x2 > region_x + region_w - 10:
@@ -1475,17 +1471,23 @@ def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=
         
         print(f"� Rotate: angle={angle}°, API=({x_api},{y_api})")
         
-        # Simple coordinate mapping with Y adjustment for slider
-        x1, y1 = calculate_simple_coordinates(x_api, y_api, region_coords, captured_image_size)
-        y1 -= 35  # Move up for better slider targeting
+        # Simple direct coordinate addition: API coords + region coords
+        x1 = region_x + x_api
+        y1 = region_y + y_api - 35  # Move up for better slider targeting
+        
+        print(f"   📍 Direct mapping: API({x_api},{y_api}) + Region({region_x},{region_y}) - 35 = ({x1},{y1})")
         
         # Ensure Y stays within bounds
         if y1 < region_y:
             y1 = region_y + 5
+            print(f"   ⚠️ Y adjusted to stay within region: {y1}")
         
-        # Calculate offset based on angle and slider width
+        # Calculate offset based on angle and slider width  
         slider_width = region_w * 0.7  # 70% of region width
         offset = angle * (slider_width / 180)
+        
+        print(f"   📏 Slider width: {slider_width:.0f}px (70% of region)")
+        print(f"   📏 Offset calc: {angle}° × ({slider_width:.0f}/180) = {offset:.1f}px")
         
         x2 = x1 + int(offset)
         y2 = y1
@@ -1560,49 +1562,36 @@ def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=
 
     elif captcha_type == "object":
         raw_coords = data.get("raw", "")
-
-        print(f"🎯 Object selection: raw_coords='{raw_coords}'")
-        print(
-            f"📐 Region: ({region_x}, {region_y}) size=({region_w}x{region_h})")
-
-        # Get monitor info for scaling detection
-        monitor_info = get_monitor_info()
-        scaling_factor = monitor_info.get("scaling_factor", 1.0)
-        is_retina = monitor_info.get("is_retina", False)
-
-        print(f"🖥️ Display: scaling={scaling_factor}, retina={is_retina}")
-
+        
+        print(f"🎯 Object DEBUG:")
+        print(f"   📊 Raw coords: '{raw_coords}'")
+        print(f"   � Region: ({region_x},{region_y}) size={region_w}x{region_h}")
+        
         if raw_coords:
             clicks = []
             for coord_pair in raw_coords.split('|'):
                 if ',' in coord_pair:
                     x_str, y_str = coord_pair.split(',')
                     x_api, y_api = float(x_str), float(y_str)
-
+                    
                     # Check if API coordinates are ratios (0-1) or absolute
                     if x_api <= 1.0 and y_api <= 1.0:
-                        # API sends ratios from 0 to 1, convert to absolute within region
+                        # API sends ratios, convert to absolute within region
                         x_screen = region_x + int(x_api * region_w)
                         y_screen = region_y + int(y_api * region_h)
-                        print(
-                            f"🎯 Object click (ratio): API=({x_api:.1f},{y_api:.1f}) → screen=({x_screen}, {y_screen})")
+                        print(f"   👆 Object (ratio): API({x_api:.1f},{y_api:.1f}) → ({x_screen},{y_screen})")
                     else:
-                        # API sends absolute coordinates, use coordinate mapping
-                        x_screen, y_screen = calculate_simple_coordinates(
-                            x_api, y_api,
-                            (region_x, region_y, region_w, region_h),
-                            captured_image_size
-                        )
-                        print(
-                            f"🎯 Object click (absolute): API=({x_api:.1f},{y_api:.1f}) → screen=({x_screen}, {y_screen})")
-
+                        # API sends absolute coordinates - direct addition
+                        x_screen = region_x + int(x_api)
+                        y_screen = region_y + int(y_api)
+                        print(f"   👆 Object (absolute): API({x_api:.0f},{y_api:.0f}) + Region({region_x},{region_y}) = ({x_screen},{y_screen})")
+                    
                     clicks.append((x_screen, y_screen))
-
+            
             if clicks:
-                print(f"🖱️ Will click {len(clicks)} points")
+                print(f"   🖱️ Clicking {len(clicks)} points: {clicks}")
                 time.sleep(0.5)
-                success = click_points_abs(clicks)
-                return success
+                return click_points_abs(clicks)
 
     return False
 
