@@ -1012,18 +1012,21 @@ def safe_mouse_drag(start_x, start_y, end_x, end_y, duration=0.5):
 
         if SYSTEM == "Darwin":  # macOS
             pag.mouseDown(start_x, start_y, button='left')
-            time.sleep(0.1)
+            time.sleep(0.5)  # Longer pause after mouseDown
             
             # Force straight line movement - keep Y constant for horizontal drag
             if abs(end_y - start_y) < 5:  # Horizontal drag
                 print(f"🔄 Horizontal drag detected, forcing Y={start_y}")
-                pag.moveTo(end_x, start_y, duration=duration)  # Keep Y constant
-                time.sleep(0.1)
-                pag.mouseUp(end_x, start_y, button='left')  # Use start_y to keep horizontal
+                final_y = start_y  # Force same Y
+                pag.moveTo(end_x, final_y, duration=duration * 1.5)  # Slower movement
+                time.sleep(0.5)
+                pag.mouseUp(end_x, final_y, button='left')  # Use same Y
+                print(f"🖱️ Horizontal drag completed: ({start_x},{start_y}) → ({end_x},{final_y})")
             else:
-                pag.moveTo(end_x, end_y, duration=duration)
-                time.sleep(0.1)
+                pag.moveTo(end_x, end_y, duration=duration * 1.5)  # Slower movement
+                time.sleep(0.5)
                 pag.mouseUp(end_x, end_y, button='left')
+                print(f"🖱️ Diagonal drag completed: ({start_x},{start_y}) → ({end_x},{end_y})")
         else:  # Windows/Linux
             pag.drag(end_x, end_y, duration, button='left')
 
@@ -1471,7 +1474,7 @@ def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=
         
         print(f"�️ Slide: ({x1},{y1}) → ({x2},{y2})")
         time.sleep(0.5)
-        return safe_mouse_drag(x1, y1, x2, y2, duration=1.0)
+        return safe_mouse_drag(x1, y1, x2, y2, duration=2.0)  # Slower drag
         
     elif captcha_type == "rotate_app":
         angle = data.get("angle", 0)
@@ -1504,71 +1507,8 @@ def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=
         
         print(f"�️ Rotate: ({x1},{y1}) → ({x2},{y2}) angle={angle}°")
         time.sleep(0.5)
-        return safe_mouse_drag(x1, y1, x2, y2, duration=1.5)
+        return safe_mouse_drag(x1, y1, x2, y2, duration=2.5)  # Even slower for rotate
 
-        # Tránh chia 0
-        ref_w = max(1, int(ref_w))
-        ref_h = max(1, int(ref_h))
-
-        # Map tọa độ theo tỉ lệ
-        x_ratio = x_api / ref_w
-        y_ratio = y_api / ref_h
-
-        # Điều chỉnh Y để trỏ lên trên thanh xoay một chút
-        y_adjustment_pixels = 30
-
-        x1 = region_x + int(x_ratio * region_w)
-        y1 = region_y + int(y_ratio * region_h) - y_adjustment_pixels
-
-        # Không vượt ra ngoài vùng theo trục Y
-        if y1 < region_y:
-            y1 = region_y + 5
-            print(f"⚠️ Y adjusted to stay within region: {y1}")
-
-        print(
-            f"📍 Mapping: ratio=({x_ratio:.3f},{y_ratio:.3f}) → screen=({x1},{y1})")
-        print(f"🔧 Applied Y adjustment: -{y_adjustment_pixels}px")
-
-        # Ước lượng bề rộng slider (80% chiều rộng region)
-        actual_slider_width = region_w * 0.8
-        print(f"📐 Slider width (est): {actual_slider_width:.0f}px")
-
-        # Offset kéo theo công thức: offset = angle * (slider_width / 180)
-        offset = angle * (actual_slider_width / 180.0)
-        print(
-            f"📏 Offset: angle={angle}° × ({actual_slider_width:.0f}/180) = {offset:.1f}px")
-
-        # Tính điểm kết thúc và ràng buộc trong vùng slider
-        x2 = x1 + int(offset)
-        y2 = y1
-
-        margin = 20
-        max_x = region_x + int(region_w * 0.85)  # giới hạn phải ~85% vùng
-        min_x = region_x + margin
-
-        if x2 > max_x:
-            x2 = max_x
-            print(f"⚠️ Adjusted x2 to stay within slider bounds: {x2}")
-        elif x2 < min_x:
-            x2 = min_x
-            print(f"⚠️ Adjusted x2 to stay within slider bounds: {x2}")
-
-        # Giới hạn độ dài kéo tối đa 90% bề rộng slider
-        drag_distance = abs(x2 - x1)
-        max_reasonable_drag = actual_slider_width * 0.9
-        if drag_distance > max_reasonable_drag:
-            scale_factor = max_reasonable_drag / drag_distance
-            new_offset = int((x2 - x1) * scale_factor)
-            x2 = x1 + new_offset
-            print(
-                f"🔧 Scaled drag: {drag_distance:.1f}px → {new_offset}px (factor: {scale_factor:.2f})")
-
-        print(f"🖱️ Rotate drag: from ({x1}, {y1}) to ({x2}, {y2}) "
-            f"[drag={abs(x2-x1)}px, slider≈{actual_slider_width:.0f}px]")
-
-        time.sleep(0.5)
-        success = safe_mouse_drag(x1, y1, x2, y2, duration=1.5)
-        return success
 
     elif captcha_type == "object":
         raw_coords = data.get("raw", "")
