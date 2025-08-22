@@ -27,6 +27,9 @@ import pyautogui as pag
 from PIL import Image
 import requests
 
+# Disable PyAutoGUI fail-safe
+pag.FAILSAFE = False
+
 # OCR for text detection
 try:
     import pytesseract
@@ -1018,13 +1021,21 @@ def safe_mouse_drag(start_x, start_y, end_x, end_y, duration=0.5):
             if abs(end_y - start_y) < 5:  # Horizontal drag
                 print(f"🔄 Horizontal drag detected, forcing Y={start_y}")
                 final_y = start_y  # Force same Y
-                pag.moveTo(end_x, final_y, duration=duration * 1.5)  # Slower movement
-                time.sleep(0.5)
+                
+                # Move in small steps to ensure straight line
+                steps = 10
+                step_size = (end_x - start_x) / steps
+                for i in range(steps + 1):
+                    current_x = start_x + int(i * step_size)
+                    pag.moveTo(current_x, final_y, duration=duration * 1.5 / steps)
+                    time.sleep(0.05)
+                
+                time.sleep(0.3)
                 pag.mouseUp(end_x, final_y, button='left')  # Use same Y
                 print(f"🖱️ Horizontal drag completed: ({start_x},{start_y}) → ({end_x},{final_y})")
             else:
                 pag.moveTo(end_x, end_y, duration=duration * 1.5)  # Slower movement
-                time.sleep(0.5)
+                time.sleep(0.3)
                 pag.mouseUp(end_x, end_y, button='left')
                 print(f"🖱️ Diagonal drag completed: ({start_x},{start_y}) → ({end_x},{end_y})")
         else:  # Windows/Linux
@@ -1466,11 +1477,26 @@ def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=
         
         print(f"   ➡️ Offset: {x1} + {offset} = {x2}")
         
-        # Ensure within bounds
+        # Ensure within screen bounds first
+        import mss
+        with mss.mss() as sct:
+            screen_w = sct.monitors[0]['width']
+            screen_h = sct.monitors[0]['height']
+        
+        if x2 > screen_w - 50:
+            x2 = screen_w - 50
+            print(f"   ⚠️ X2 adjusted to stay within screen: {x2}")
+        elif x2 < 50:
+            x2 = 50
+            print(f"   ⚠️ X2 adjusted to stay within screen: {x2}")
+        
+        # Then ensure within region bounds
         if x2 > region_x + region_w - 10:
             x2 = region_x + region_w - 10
+            print(f"   ⚠️ X2 adjusted to stay in region: {x2}")
         elif x2 < region_x + 10:
             x2 = region_x + 10
+            print(f"   ⚠️ X2 adjusted to stay in region: {x2}")
         
         print(f"�️ Slide: ({x1},{y1}) → ({x2},{y2})")
         time.sleep(0.5)
