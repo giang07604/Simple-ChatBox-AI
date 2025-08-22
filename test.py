@@ -1415,13 +1415,31 @@ def calculate_simple_coordinates(x_api, y_api, region_info, captured_image_size=
 def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=None, captured_image_size=None):
     """Simple captcha action with image-size-based coordinate calculation"""
     region_x, region_y, region_w, region_h = region_coords
+    
+    print(f"🚀 EXECUTE_CAPTCHA_ACTION DEBUG:")
+    print(f"   🏷️ Type: {captcha_type}")
+    print(f"   📊 Data: {data}")
+    print(f"   📦 Region: ({region_x},{region_y}) {region_w}x{region_h}")
+    print(f"   📷 Captured size: {captured_image_size}")
+    print(f"   📐 Actual size: {actual_image_size}")
+    
+    # Get screen info for comparison
+    import mss
+    with mss.mss() as sct:
+        screen_w = sct.monitors[0]['width']
+        screen_h = sct.monitors[0]['height']
+        print(f"   🖥️ Screen resolution: {screen_w}x{screen_h}")
 
     if captcha_type == "slide":
         x_api = data.get("x", 0)
         y_api = data.get("y", 0)
         offset = data.get("offset", 0)
         
-        print(f"🎯 Slide: API=({x_api},{y_api}), offset={offset}")
+        print(f"🎯 Slide DEBUG:")
+        print(f"   📊 Raw API data: {data}")
+        print(f"   📐 API coords: x={x_api}, y={y_api}, offset={offset}")
+        print(f"   📦 Region: ({region_x},{region_y}) size={region_w}x{region_h}")
+        print(f"   📷 Captured size: {captured_image_size}")
         
         # Simple coordinate mapping
         x1, y1 = calculate_simple_coordinates(x_api, y_api, region_coords, captured_image_size)
@@ -1431,8 +1449,10 @@ def execute_captcha_action(captcha_type, data, region_coords, actual_image_size=
         if captured_image_size and captured_image_size[0] > 1000:
             # 2x scaling detected
             offset_screen = int((offset / 2.0) / api_reference_w * region_w)
+            print(f"   🔍 2x scaling detected, offset: {offset} → {offset/2.0} → {offset_screen}px")
         else:
             offset_screen = int(offset / api_reference_w * region_w)
+            print(f"   📏 Normal scaling, offset: {offset} → {offset_screen}px")
         
         x2 = x1 + offset_screen
         y2 = y1
